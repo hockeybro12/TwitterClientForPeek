@@ -38,14 +38,15 @@ NSDictionary *colorsArray;
 int colorsArrayCount = 0;
 
 
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     
     self.tableView.allowsMultipleSelectionDuringEditing = NO;
 
     //array to set up the different colors. i use a dictionary and the key is the string values and the actual colors are the values so we can easily access later
-    colorKeysArray = [NSArray arrayWithObjects:@"yellow", @"purple", @"green", @"cyan", nil];
-    NSArray * colorValues = [NSArray arrayWithObjects:[UIColor yellowColor], [UIColor colorWithRed:(189/255.0) green:(162/255.0) blue:(212/255.0) alpha:1], [UIColor colorWithRed:(171/255.0) green:(214/255.0) blue:(149/255.0) alpha:1], [UIColor cyanColor], nil];
+    colorKeysArray = [NSArray arrayWithObjects:@"yellow", @"purple", @"green", @"cyan", @"gray", nil];
+    NSArray * colorValues = [NSArray arrayWithObjects:[UIColor yellowColor], [UIColor colorWithRed:(189/255.0) green:(162/255.0) blue:(212/255.0) alpha:1], [UIColor colorWithRed:(171/255.0) green:(214/255.0) blue:(149/255.0) alpha:1], [UIColor cyanColor], [UIColor lightGrayColor], nil];
     colorsArray = [NSDictionary dictionaryWithObjects:colorValues forKeys:colorKeysArray];
     colorsArrayCount = 0;
     
@@ -60,21 +61,25 @@ int colorsArrayCount = 0;
     
     self.tableView.contentInset = currentInset;
     
+    //__block BOOL addToFront;
 
-
-    [weakSelf refreshTwitterView];
+    //[weakSelf refreshTwitterView];
 
     [weakSelf.tableView addPullToRefreshWithActionHandler:^{
         //blocks for refreshing
-        [weakSelf refreshTwitterView];
+        BOOL addToFront = true;
+        colorsArrayCount = 0;
+        [weakSelf refreshTwitterView:addToFront];
     }];
     
     [weakSelf.tableView addInfiniteScrollingWithActionHandler:^{
 
+        BOOL addToFront = false;
+        colorsArrayCount = 0;
         //increment the count of tweets to load
         count = count+5;
         //blocks for infinite scrolling
-        [weakSelf refreshTwitterView];
+        [weakSelf refreshTwitterView:addToFront];
     }];
 }
 
@@ -88,10 +93,7 @@ int colorsArrayCount = 0;
 }
 
 
-- (void)tableView: (UITableView*)tableView
-  willDisplayCell: (UITableViewCell*)cell
-forRowAtIndexPath: (NSIndexPath*)indexPath
-{
+- (void)tableView: (UITableView*)tableView willDisplayCell: (UITableViewCell*)cell forRowAtIndexPath: (NSIndexPath*)indexPath {
     //helper delegate method to change the color of the text
     NSString *string = [colorKeysArray objectAtIndex:colorsArrayCount];
     cell.backgroundColor = [colorsArray valueForKey:string];
@@ -99,8 +101,8 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
     
     cell.textLabel.backgroundColor = [UIColor clearColor];
     cell.detailTextLabel.backgroundColor = [UIColor clearColor];
-    if (colorsArrayCount >= 3) {
-        //since i only have 4 colors, reset the count if it gets above 3. can also be done randomized or using mod but I did it this way
+    if (colorsArrayCount >= 4) {
+        //since i only have 5 colors, reset the count if it gets above 4. can also be done randomized or using mod but I did it this way
         colorsArrayCount = 0;
     } else {
         colorsArrayCount++;
@@ -157,9 +159,10 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
     return [self.tableData count];
 }
 
--(void)refreshTwitterView {
+-(void)refreshTwitterView:(BOOL)addToFront {
     __weak TwitterTableViewController *weakSelf = self;
 
+    
     colorsArrayCount = 0;
     //built using assistance from : http://www.techotopia.com/index.php/IPhone_iOS_6_Facebook_and_Twitter_Integration_using_SLRequest
     
@@ -192,13 +195,41 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
                         //clear array
                         //this part can be improved. we can compare all the texts of this array with the current ones in tabledata and only update the table view with the new rows.
                         //comparison will be done in a similar manner to what is done with the dictionary and defaults
-                        [tableData removeAllObjects];
+                        //[tableData removeAllObjects];
                         
                         
+                        BOOL firstTimeAdding = false;
+                        BOOL dontAddTheText = false;
+                        BOOL addedAnyRow = false;
+                        NSInteger tableDataInitialCount = 0;
                         
+                        tableDataInitialCount = [tableData count];
                         
                         //initialize the table data
-                        tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                        NSMutableArray *tableDataToAdd = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                        if (([tableData count] == 0)) {
+                            firstTimeAdding = true;
+                            tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                        } else {
+                            for (int j = 0; j < [tableDataToAdd count]; j++) {
+                                NSDictionary *aDictionary = [tableDataToAdd objectAtIndex:j];
+                                NSString *text = [aDictionary objectForKey:@"text"];
+                                dontAddTheText = false;
+                                for (int i = 0; i < [tableData count]; i++) {
+                                    NSDictionary *tweet = [tableData objectAtIndex:i];
+                                    NSString *text2 = [tweet objectForKey:@"text"];
+                                    if ([text isEqualToString:text2]) {
+                                        dontAddTheText = true;
+                                    }
+                                }
+                                if (dontAddTheText == false) {
+                                    addedAnyRow = true;
+                                    [tableData addObject:aDictionary];
+                                }
+                            }
+                        }
+                        
+                        
                         
                         //get the dictionary from nsuserdefaults that contains all the deleted tweets
                         NSDictionary *retrievedDictionary = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"DicKey"];
@@ -217,12 +248,34 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
                                 }
                             }
                         }
-                    
-
+                        
+                        colorsArrayCount = 0;
                         dispatch_async(dispatch_get_main_queue(), ^{
                             //make sure we reload data on the main thread so that it reloads for sure
-                            [weakSelf.tableView reloadData];
+                            colorsArrayCount = 0;
+                            if (firstTimeAdding == true) {
+                                [weakSelf.tableView reloadData];
+                            }
                             
+                            if ((addedAnyRow == true) && (addToFront == false)) {
+                                NSInteger statingIndex = tableDataInitialCount;
+                                NSInteger noOfObjects = [tableData count] - tableDataInitialCount;
+                                NSMutableArray *indexPaths = [[NSMutableArray alloc] init];
+                                
+                                for (NSInteger index = statingIndex; index < statingIndex+noOfObjects; index++) {
+                                    
+                                    //[_objects addObject:]; // add the object from getFeed method.
+                                    NSIndexPath *indexPath = [NSIndexPath indexPathForRow:index inSection:0];
+                                    [indexPaths addObject:indexPath];
+                                    
+                                }
+                                
+                                [self.tableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationFade];
+                            } else if ((addedAnyRow == true) && (addToFront == true)) {
+                                [tableData removeAllObjects];
+                                tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                                [weakSelf.tableView reloadData];
+                            }
                             
                             //stop the infinitescrollingview and the pulltorefresh
                             [weakSelf.tableView endUpdates];
@@ -246,7 +299,6 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
                                  otherButtonTitles: nil] show];
 
             });
-
         }
         }
     }];
@@ -367,6 +419,21 @@ forRowAtIndexPath: (NSIndexPath*)indexPath
         
 
     }
+    
+
+    if(indexPath.row == 0){
+        cell.contentView.backgroundColor = [UIColor yellowColor];
+    }
+    if(indexPath.row == 1){
+        cell.contentView.backgroundColor = [UIColor colorWithRed:(189/255.0) green:(162/255.0) blue:(212/255.0) alpha:1];
+    }
+    if (indexPath.row == 2) {
+        cell.contentView.backgroundColor = [UIColor colorWithRed:(171/255.0) green:(214/255.0) blue:(149/255.0) alpha:1];
+    }
+    if (indexPath.row == 3) {
+        cell.contentView.backgroundColor = [UIColor cyanColor];
+    }
+    
    
     NSDictionary *userNameDict = [tweet objectForKey:@"user"];
   
