@@ -243,6 +243,7 @@ int colorsArrayCount = 0;
                                     NSDictionary *tweet = [tableData objectAtIndex:i];
                                     NSString *text = [tweet objectForKey:@"text"];
                                     if ([text isEqualToString:string]) {
+                                        NSLog(@"%@", text);
                                         [tableData removeObjectAtIndex:i];
                                     }
                                 }
@@ -274,6 +275,23 @@ int colorsArrayCount = 0;
                             } else if ((addedAnyRow == true) && (addToFront == true)) {
                                 [tableData removeAllObjects];
                                 tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                                
+                                if (retrievedDictionary != nil) {
+                                    //if there are objects in the dictionary, then we have to compare them to make sure it's not loaded since user previously deleted them
+                                    NSMutableDictionary *mutableRetrievedDictionary = [[[NSUserDefaults standardUserDefaults] objectForKey:@"DicKey"] mutableCopy];
+                                    NSArray *keys=[mutableRetrievedDictionary allKeys];
+                                    for (NSString *string in keys) {
+                                        for (int i = 0; i < [tableData count]; i++) {
+                                            NSDictionary *tweet = [tableData objectAtIndex:i];
+                                            NSString *text = [tweet objectForKey:@"text"];
+                                            if ([text isEqualToString:string]) {
+                                                NSLog(@"%@", text);
+                                                [tableData removeObjectAtIndex:i];
+                                            }
+                                        }
+                                    }
+                                }
+                                
                                 [weakSelf.tableView reloadData];
                             }
                             
