@@ -117,11 +117,18 @@ int colorsArrayCount = 0;
         UITableViewCell *cell = [tableView cellForRowAtIndexPath:indexPath];
         NSString *cellText = cell.textLabel.text;
         
+        UILabel *userNameButton = (UILabel*)[cell.contentView viewWithTag:(indexPath.row + 2200)];
+        cellText = [userNameButton.text stringByAppendingString:cellText];
+        NSLog(@"%@", cellText);
+
         //get the dictionary
         NSDictionary *retrievedDictionary = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"DicKey"];
         if (retrievedDictionary == nil) {
             //if dictionary doesn't already exist, create it by adding the value and putting it into nsuserdefaults
             NSMutableDictionary *mutableDictionary = [[NSMutableDictionary alloc] init];
+            
+            
+            
             [mutableDictionary setValue:@"1" forKey:cellText];
             
             [[NSUserDefaults standardUserDefaults] setObject:mutableDictionary forKey:@"DicKey"];
@@ -130,6 +137,7 @@ int colorsArrayCount = 0;
             //else just add another key to it
             NSMutableDictionary *mutableRetrievedDictionary = [[[NSUserDefaults standardUserDefaults] objectForKey:@"DicKey"] mutableCopy];
             
+            NSString *valueKey = [mutableRetrievedDictionary objectForKey:cellText];
             
             [mutableRetrievedDictionary setValue:@"1" forKey:cellText];
             
@@ -242,8 +250,11 @@ int colorsArrayCount = 0;
                                 for (int i = 0; i < [tableData count]; i++) {
                                     NSDictionary *tweet = [tableData objectAtIndex:i];
                                     NSString *text = [tweet objectForKey:@"text"];
+                                    NSDictionary *userNameDict = [tweet objectForKey:@"user"];
+                                    NSString *usernameButtonString = [userNameDict objectForKey:@"screen_name"];
+                                    
+                                    text = [usernameButtonString stringByAppendingString:text];
                                     if ([text isEqualToString:string]) {
-                                        NSLog(@"%@", text);
                                         [tableData removeObjectAtIndex:i];
                                     }
                                 }
@@ -259,6 +270,7 @@ int colorsArrayCount = 0;
                             }
                             
                             if ((addedAnyRow == true) && (addToFront == false)) {
+                                NSLog(@"Here1");
                                 NSInteger statingIndex = tableDataInitialCount;
                                 NSInteger noOfObjects = [tableData count] - tableDataInitialCount;
                                 NSMutableArray *indexPaths = [[NSMutableArray alloc] init];
@@ -272,7 +284,8 @@ int colorsArrayCount = 0;
                                 }
                                 
                                 [self.tableView insertRowsAtIndexPaths:indexPaths withRowAnimation:UITableViewRowAnimationFade];
-                            } else if ((addedAnyRow == true) && (addToFront == true)) {
+                            } /*else if ((addedAnyRow == true) && (addToFront == true)) {
+                                NSLog(@"Here2");
                                 [tableData removeAllObjects];
                                 tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
                                 
@@ -284,8 +297,35 @@ int colorsArrayCount = 0;
                                         for (int i = 0; i < [tableData count]; i++) {
                                             NSDictionary *tweet = [tableData objectAtIndex:i];
                                             NSString *text = [tweet objectForKey:@"text"];
+                                            NSDictionary *userNameDict = [tweet objectForKey:@"user"];
+                                            NSString *usernameButtonString = [userNameDict objectForKey:@"screen_name"];
+                               
+                                            text = [usernameButtonString stringByAppendingString:text];
                                             if ([text isEqualToString:string]) {
-                                                NSLog(@"%@", text);
+                                                [tableData removeObjectAtIndex:i];
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                [weakSelf.tableView reloadData];
+                            } */ else {
+                                [tableData removeAllObjects];
+                                tableData = [[NSMutableArray alloc] initWithArray:twitterFeedArray];
+                                
+                                if (retrievedDictionary != nil) {
+                                    //if there are objects in the dictionary, then we have to compare them to make sure it's not loaded since user previously deleted them
+                                    NSMutableDictionary *mutableRetrievedDictionary = [[[NSUserDefaults standardUserDefaults] objectForKey:@"DicKey"] mutableCopy];
+                                    NSArray *keys=[mutableRetrievedDictionary allKeys];
+                                    for (NSString *string in keys) {
+                                        for (int i = 0; i < [tableData count]; i++) {
+                                            NSDictionary *tweet = [tableData objectAtIndex:i];
+                                            NSString *text = [tweet objectForKey:@"text"];
+                                            NSDictionary *userNameDict = [tweet objectForKey:@"user"];
+                                            NSString *usernameButtonString = [userNameDict objectForKey:@"screen_name"];
+                                            
+                                            text = [usernameButtonString stringByAppendingString:text];
+                                            if ([text isEqualToString:string]) {
                                                 [tableData removeObjectAtIndex:i];
                                             }
                                         }
@@ -404,6 +444,9 @@ int colorsArrayCount = 0;
     NSArray *realMedia = [media objectForKey:@"media"];
     NSString *mediaURL;
     
+    NSDictionary *userNameDict = [tweet objectForKey:@"user"];
+
+    
     if (realMedia == NULL) {
         didAddMediaURL = false;
     } else {
@@ -435,6 +478,12 @@ int colorsArrayCount = 0;
         imageViewBigPhoto.tag = (indexPath.row + 1200);
         [cell.contentView addSubview:imageViewBigPhoto];
         
+        UILabel *usernameButton = [[UILabel alloc] initWithFrame:CGRectZero];
+        usernameButton.font = [UIFont systemFontOfSize:14];
+        [usernameButton setTextColor:[UIColor blueColor]];
+        usernameButton.tag = (indexPath.row + 2200);
+        
+        [cell.contentView addSubview:usernameButton];
 
     }
     
@@ -453,20 +502,16 @@ int colorsArrayCount = 0;
     }
     
    
-    NSDictionary *userNameDict = [tweet objectForKey:@"user"];
   
     NSString *tweetID = [tweet objectForKey:@"id"];
     cell.textLabel.text = [tweet objectForKey:@"text"];
     
     //configure the text that shows the username name. in a full feature app, you can click this button and load the person's profile
-    UIButton *usernameButton = [[UIButton alloc] initWithFrame:CGRectZero];
-    usernameButton.font = [UIFont systemFontOfSize:14];
-    [usernameButton setTitleColor:[UIColor blueColor] forState:UIControlStateNormal];
+    UILabel *userNameButton = (UILabel*)[cell.contentView viewWithTag:(indexPath.row + 2200)];
     NSString *usernameButtonString = [userNameDict objectForKey:@"screen_name"];
     CGSize stringsize = [usernameButtonString sizeWithFont:[UIFont systemFontOfSize:14]];
-    [usernameButton setTitle:usernameButtonString forState:UIControlStateNormal];
-    [usernameButton setTitle:usernameButton forState:UIControlStateHighlighted];
-    [usernameButton setFrame:CGRectMake(60, 5, stringsize.width, stringsize.height)];
+    [userNameButton setText:usernameButtonString];
+    [userNameButton setFrame:CGRectMake(60, 5, stringsize.width, stringsize.height)];
     
     NSString *profilePictureURL = [userNameDict objectForKey:@"profile_image_url_https"];
     
@@ -491,7 +536,6 @@ int colorsArrayCount = 0;
     retweetButton.userData = tweetID;
     [cell.contentView addSubview:retweetButton];
     
-    [cell.contentView addSubview:usernameButton];
     
     return cell;
  
